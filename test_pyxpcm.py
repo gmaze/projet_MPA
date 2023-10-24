@@ -1,3 +1,4 @@
+# ne fonctionne pas pour l'instant
 import numpy as np
 
 # Temporarily redefine np.int to int -> car sinon on a une erreur np.int est deprecier dans NumPy 1.20

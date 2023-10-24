@@ -1,7 +1,9 @@
 from netCDF4 import Dataset
 
-# Ouvrez le fichier NetCDF
-nc_file = Dataset('/home/mona/Téléchargements/argo_sample.nc', 'r')  # Remplacez 'votre_fichier.nc' par le chemin vers votre fichier NetCDF.
+# Ouvrir le fichier
+nc_file = Dataset('/home/mona/Téléchargements/argo_sample.nc', 'r')  
+
+#recupere toutes les variables
 """
 for var_name in nc_file.variables:
     variable = nc_file.variables[var_name]
@@ -22,6 +24,7 @@ for var_name in nc_file.variables:
     print(f"Valid Min : {valid_min}")
     print(f"Valid Max : {valid_max}")
 """
+#affiche les valeurs des variables dans le fichier
 depth_data = nc_file.variables['DEPTH']  
 depth_values = depth_data[:]
 lat_data = nc_file.variables['LATITUDE']  
@@ -60,5 +63,5 @@ print("brv2")
 print(br_values)
 
 
-# N'oubliez pas de fermer le fichier NetCDF lorsque vous avez terminé
+#ferme le fichier
 nc_file.close()
