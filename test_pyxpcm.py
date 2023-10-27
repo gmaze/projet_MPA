@@ -19,10 +19,10 @@ import gsw
 # créer une box pour dataFetcher de argopy
 llon=-98;rlon=-80
 ulat=31;llat=18
-depthmin=0;depthmax=200
+depthmin=0;depthmax=1000
 # Time range des donnnées
-time_in='2020-01'
-time_f='2020-02'
+time_in='2018-01'
+time_f='2020-01'
 
 #recuperer les données avec argopy
 ds_points = ArgoDataFetcher(src='erddap').region([llon,rlon, llat,ulat, depthmin, depthmax,time_in,time_f]).to_xarray()
@@ -30,6 +30,8 @@ ds_points = ArgoDataFetcher(src='erddap').region([llon,rlon, llat,ulat, depthmin
 ds = ds_points.argo.point2profile()
 #recuperer les données SIG0 et N2(BRV2) avec teos 10
 ds.argo.teos10(['SIG0','N2'])
+
+
 
 
 # z est créé pour représenter des profondeurs de 0 à la profondeur maximale avec un intervalle de 5 mètres ( peux etre modifié)
@@ -43,6 +45,7 @@ p=np.array(ds2.PRES)
 lat=np.array(ds2.LATITUDE)
 z=np.ones_like(p)
 nprof=np.array(ds2.N_PROF)
+
 for i in np.arange(0,len(nprof)):
     z[i,:]=gsw.z_from_p(p[i,:], lat[i])
 
@@ -50,6 +53,7 @@ for i in np.arange(0,len(nprof)):
 # Calcul de la profondeur à partir de la pression interpolée 
 p_interp=np.array(ds2.PRES_INTERPOLATED)
 z_interp=gsw.z_from_p(p_interp, 25) 
+
 
 #Créer un objet Dataset xarray pour stocker les données
 temp=np.array(ds2.TEMP)
@@ -75,6 +79,7 @@ da=xr.Dataset(data_vars={
                          coords={'DEPTH':depth})
 print(da)
 
+
 z = np.arange(0.,-200,-10.) # depth array
 pcm_features = {'temperature': z, 'salinity':z} #features that vary in function of depth
 m = pcm(K=6, features=pcm_features) # create the 'basic' model
@@ -86,6 +91,7 @@ m.fit(da, features=features_in_ds, dim=features_zdim)
 da['TEMP'].attrs['feature_name'] = 'temperature'
 da['PSAL'].attrs['feature_name'] = 'salinity'
 da['DEPTH'].attrs['axis'] = 'Z'
+
 
 m.predict(da, features=features_in_ds, dim=features_zdim,inplace=True)
 print(da)
@@ -101,5 +107,7 @@ fig, ax = m.plot.quantile(da['TEMP_Q'], maxcols=3, figsize=(10, 8), sharey=True)
 
 fig, ax = m.plot.quantile(da['PSAL_Q'], maxcols=3, figsize=(10, 8), sharey=True)
 plt.show()
+
+
 # Reset np.int to its original value
 np.int = np.int_
