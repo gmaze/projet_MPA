@@ -17,12 +17,13 @@ import gsw
 
 
 # créer une box pour dataFetcher de argopy
-llon=-98;rlon=-80
-ulat=31;llat=18
+llon=-75;rlon=-45
+ulat=30;llat=20
 depthmin=0;depthmax=1000
 # Time range des donnnées
-time_in='2018-01'
-time_f='2020-01'
+time_in='2010-01'
+time_f='2010-12'
+
 
 #recuperer les données avec argopy
 ds_points = ArgoDataFetcher(src='erddap').region([llon,rlon, llat,ulat, depthmin, depthmax,time_in,time_f]).to_xarray()
@@ -32,12 +33,13 @@ ds = ds_points.argo.point2profile()
 ds.argo.teos10(['SIG0','N2'])
 
 
-
+#print(ds)
 
 # z est créé pour représenter des profondeurs de 0 à la profondeur maximale avec un intervalle de 5 mètres ( peux etre modifié)
-z=np.arange(0.,depthmax,5.)
+z=np.arange(0,depthmax,5)
 #interpole ds avec les profondeurs z
 ds2 = ds.argo.interp_std_levels(z)
+
 
 
 #Calculer la profondeur avec gsw.z_from_p a partir de la p (PRES) et de lat (LATITUDE)
@@ -77,13 +79,14 @@ da=xr.Dataset(data_vars={
                          'BRV2':(('N_PROF','DEPTH'),brv2)
                         },
                          coords={'DEPTH':depth})
-print(da)
+#print(da)
 
 
-z = np.arange(0.,-200,-10.) # depth array
+z = np.arange(0.,-900,-10.) # depth array
 pcm_features = {'temperature': z, 'salinity':z} #features that vary in function of depth
 m = pcm(K=6, features=pcm_features) # create the 'basic' model
-print(m)
+#print(m)
+
 
 features_in_ds = {'temperature': 'TEMP', 'salinity': 'PSAL'}
 features_zdim='DEPTH'

@@ -35,7 +35,7 @@ class donnee(object):
         ds = ds_points.argo.point2profile()
         #recuperer les données SIG0 et N2(BRV2) avec teos 10
         ds.argo.teos10(['SIG0','N2'])
-
+    
 
         # z est créé pour représenter des profondeurs de 0 à la profondeur maximale avec un intervalle de 5 mètres ( peux etre modifié)
         z=np.arange(0.,depthmax,5.)
