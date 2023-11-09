@@ -1,5 +1,6 @@
 #fichier pour gerer les donnees
 # Load libraries
+import streamlit as st
 import numpy as np
 import pyxpcm
 from pyxpcm.models import pcm
@@ -14,12 +15,32 @@ import gsw
 class donnee(object):
     #init donnee
     def __init__(self):
-        self = 0
+         # Initialiser les attributs None , pour l'instant c'est récuperation de données simple 
+        self.llon = None
+        self.rlon = None
+        self.ulat = None
+        self.llat = None
+        self.depthmin = None
+        self.depthmax = None
+        self.time_in = None
+        self.time_f = None
+        self.data = None  # Les données Argo seront stockées ici
 
-    #fonction qui récupère les choix de utilisateur
+    #fonction qui récupère les choix de utilisateur ( ce seras changer plus tard )
     def retriv_param(self):
-        self
-    #fonction qui récupere les données 
+        st.sidebar.title("Paramètres de l'application")
+        
+        self.llon = st.sidebar.slider("Longitude gauche", -180.0, 180.0, -98.0)
+        self.rlon = st.sidebar.slider("Longitude droite", -180.0, 180.0, -80.0)
+        self.ulat = st.sidebar.slider("Latitude supérieure", -90.0, 90.0, 31.0)
+        self.llat = st.sidebar.slider("Latitude inférieure", -90.0, 90.0, 18.0)
+        self.depthmin = st.sidebar.slider("Profondeur minimale", 0, 1000, 0)
+        self.depthmax = st.sidebar.slider("Profondeur maximale", 0, 1000, 200)
+        self.time_in = st.sidebar.text_input("Date de début (format YYYY-MM)", "2020-01")
+        self.time_f = st.sidebar.text_input("Date de fin (format YYYY-MM)", "2020-02")
+
+
+    #fonction qui récupere les données il faut ajouter un if si les donnnés ont déja été chercher 
     def load_argo(self):
         # créer une box pour dataFetcher de argopy
         llon=-98;rlon=-80
@@ -80,12 +101,14 @@ class donnee(object):
                                 coords={'DEPTH':depth})
         return da
     
-    # fonction qui met en cache 
+    # fonction qui met en cache avec st.cache 
+    # les données auront une clé unique à partir des paramètres qui seras utiliser dans load_argo
     def save_data(self):
         self
     #fonction pour visualiser les données
     def show_data(self):
         self
+
     #foncton pour classer les données(pyxpcm)
     def class_data(self):
         self
