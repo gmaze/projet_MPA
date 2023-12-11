@@ -51,6 +51,8 @@ time_f='2020-02'
 
 #recuperer les données avec argopy
 ds_points = ArgoDataFetcher(src='erddap').region([llon,rlon, llat,ulat, depthmin, depthmax,time_in,time_f]).to_xarray()
+
+
 #mettre en 2 dimensions ( N_PROf x N_LEVELS)
 ds = ds_points.argo.point2profile()
 #recuperer les données SIG0 et N2(BRV2) avec teos 10

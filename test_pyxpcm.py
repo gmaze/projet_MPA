@@ -112,5 +112,23 @@ fig, ax = m.plot.quantile(da['PSAL_Q'], maxcols=3, figsize=(10, 8), sharey=True)
 plt.show()
 
 
+
+
+proj = ccrs.PlateCarree()
+subplot_kw={'projection': proj, 'extent': np.array([-80,1,-1,66]) + np.array([-0.1,+0.1,-0.1,+0.1])}
+fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(5,5), dpi=120, facecolor='w', edgecolor='k', subplot_kw=subplot_kw)
+
+kmap = m.plot.cmap()
+sc = ax.scatter(ds['LONGITUDE'], da['LATITUDE'], s=3, c=da['PCM_LABELS'], cmap=kmap, transform=proj, vmin=0, vmax=m.K)
+cl = m.plot.colorbar(ax=ax)
+
+gl = m.plot.latlongrid(ax, dx=10)
+ax.add_feature(cfeature.LAND)
+ax.add_feature(cfeature.COASTLINE)
+ax.set_title('LABELS of the training set')
+plt.show()
+
+
 # Reset np.int to its original value
 np.int = np.int_
+
