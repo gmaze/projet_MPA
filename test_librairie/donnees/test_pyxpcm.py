@@ -6,7 +6,6 @@ np.int = int
 
 # Load libraries
 import numpy as np
-import pyxpcm
 from pyxpcm.models import pcm
 import xarray as xr
 from argopy import DataFetcher as ArgoDataFetcher
@@ -21,8 +20,8 @@ llon=-75;rlon=-45
 ulat=30;llat=20
 depthmin=0;depthmax=1000
 # Time range des donnnées
-time_in='2010-01'
-time_f='2010-12'
+time_in='2010-01-01'
+time_f='2015-12-01'
 
 
 #recuperer les données avec argopy
@@ -33,7 +32,7 @@ ds = ds_points.argo.point2profile()
 ds.argo.teos10(['SIG0','N2'])
 
 
-#print(ds)
+print(ds)
 
 # z est créé pour représenter des profondeurs de 0 à la profondeur maximale avec un intervalle de 5 mètres ( peux etre modifié)
 z=np.arange(0,depthmax,5)
@@ -106,10 +105,11 @@ for vname in ['TEMP', 'PSAL']:
     da = da.pyxpcm.quantile(m, q=[0.05, 0.5, 0.95], of=vname, outname=vname + '_Q', keep_attrs=True, inplace=True)
 print(da)
 
-fig, ax = m.plot.quantile(da['TEMP_Q'], maxcols=3, figsize=(10, 8), sharey=True)
+#fig, ax = m.plot.quantile(da['TEMP_Q'], maxcols=3, figsize=(10, 8), sharey=True)
 
-fig, ax = m.plot.quantile(da['PSAL_Q'], maxcols=3, figsize=(10, 8), sharey=True)
-plt.show()
+#fig, ax = m.plot.quantile(da['PSAL_Q'], maxcols=3, figsize=(10, 8), sharey=True)
+#plt.show()
+
 
 
 
@@ -119,7 +119,7 @@ subplot_kw={'projection': proj, 'extent': np.array([-80,1,-1,66]) + np.array([-0
 fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(5,5), dpi=120, facecolor='w', edgecolor='k', subplot_kw=subplot_kw)
 
 kmap = m.plot.cmap()
-sc = ax.scatter(ds['LONGITUDE'], da['LATITUDE'], s=3, c=da['PCM_LABELS'], cmap=kmap, transform=proj, vmin=0, vmax=m.K)
+sc = ax.scatter(da['LONGITUDE'], da['LATITUDE'], s=3, c=da['PCM_LABELS'], cmap=kmap, transform=proj, vmin=0, vmax=m.K)
 cl = m.plot.colorbar(ax=ax)
 
 gl = m.plot.latlongrid(ax, dx=10)

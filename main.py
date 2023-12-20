@@ -5,6 +5,7 @@
 # pour mettre en place sur un nouvel ordinateur environment MPA avec le fichier environement.yml : conda env create -f environment.yml
 # pour ouvrir  anaconda navigotor ( gestionnaire environemment) : anaconda-navigator
 
+from random import randint
 import gsw 
 import streamlit as st
 import xarray as xr
@@ -16,14 +17,104 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 import numpy as np
-#import pyxpcm
-#from pyxpcm.models import pcm
+from pyxpcm.models import pcm
 import xarray as xr
 from argopy import DataFetcher as ArgoDataFetcher
 #import cartopy.crs as ccrs 
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 #import cartopy.feature as cfeature
 
+def int_to_rgb(i: int):
+    r = hex((i*i+10)%15).replace("0x","")
+    g = hex((i*5)%15).replace("0x","")
+    b = hex((i*i*i*2)%15).replace("0x","")
+    return "#"+r*2+g*2+b*2
+
+def pyxpcm_sal_temp(llon:float,rlon:float, llat:float,ulat:float, depthmin:float, depthmax:float,time_in:str,time_f:str):
+
+    # Temporarily redefine np.int to int -> car sinon on a une erreur np.int est deprecier dans NumPy 1.20
+    np.int = int
+
+    #recuperer les données avec argopy
+    ds_points = ArgoDataFetcher(src='erddap').region([llon,rlon, llat,ulat, depthmin, depthmax,time_in,time_f]).to_xarray()
+    #mettre en 2 dimensions ( N_PROf x N_LEVELS)
+    ds = ds_points.argo.point2profile()
+    #recuperer les données SIG0 et N2(BRV2) avec teos 10
+    ds.argo.teos10(['SIG0','N2'])
+
+    # z est créé pour représenter des profondeurs de 0 à la profondeur maximale avec un intervalle de 5 mètres ( peux etre modifié)
+    z=np.arange(0,depthmax,5)
+    #interpole ds avec les profondeurs z
+    ds2 = ds.argo.interp_std_levels(z)
+
+    #Calculer la profondeur avec gsw.z_from_p a partir de la p (PRES) et de lat (LATITUDE)
+    p=np.array(ds2.PRES)
+    lat=np.array(ds2.LATITUDE)
+    z=np.ones_like(p)
+    nprof=np.array(ds2.N_PROF)
+
+    for i in np.arange(0,len(nprof)):
+        z[i,:]=gsw.z_from_p(p[i,:], lat[i])
+
+
+    # Calcul de la profondeur à partir de la pression interpolée 
+    p_interp=np.array(ds2.PRES_INTERPOLATED)
+    z_interp=gsw.z_from_p(p_interp, 25) 
+
+
+    #Créer un objet Dataset xarray pour stocker les données
+    temp=np.array(ds2.TEMP)
+    sal=np.array(ds2.PSAL)
+    depth_var=z
+    depth=z_interp
+    lat=np.array(ds2.LATITUDE)
+    lon=np.array(ds2.LONGITUDE)
+    time=np.array(ds2.TIME)
+    sig0 =np.array(ds2.SIG0)
+    brv2 =np.array(ds2.N2)
+
+    #ranger les données dans xarrays
+    da=xr.Dataset(data_vars={
+                            'TIME':(('N_PROF'),time),
+                            'LATITUDE':(('N_PROF'),lat),
+                            'LONGITUDE':(('N_PROF'),lon),
+                            'TEMP':(('N_PROF','DEPTH'),temp),
+                            'PSAL':(('N_PROF','DEPTH'),sal),
+                            'SIG0':(('N_PROF','DEPTH'),sig0),
+                            'BRV2':(('N_PROF','DEPTH'),brv2)
+                            },
+                            coords={'DEPTH':depth})
+    #print(da)
+
+
+    z = np.arange(0.,-900,-10.) # depth array
+    pcm_features = {'temperature': z, 'salinity':z} #features that vary in function of depth
+    m = pcm(K=6, features=pcm_features) # create the 'basic' model
+    
+    
+    
+    features_in_ds = {'temperature': 'TEMP', 'salinity': 'PSAL'}
+    features_zdim='DEPTH'
+    m.fit(da, features=features_in_ds, dim=features_zdim)
+    da['TEMP'].attrs['feature_name'] = 'temperature'
+    da['PSAL'].attrs['feature_name'] = 'salinity'
+    da['DEPTH'].attrs['axis'] = 'Z'
+
+    m.predict(da, features=features_in_ds, dim=features_zdim,inplace=True)
+    #print(da)
+
+    m.predict_proba(da, features=features_in_ds, inplace=True)
+    #print(da)
+
+    for vname in ['TEMP', 'PSAL']:
+        da = da.pyxpcm.quantile(m, q=[0.05, 0.5, 0.95], of=vname, outname=vname + '_Q', keep_attrs=True, inplace=True)
+    #print(da)
+
+    # Reset np.int to its original value
+    np.int = np.int_
+
+
+    return da
 
 
 df_points = pd.DataFrame()
@@ -39,7 +130,7 @@ longitude = st.sidebar.slider("longitude", min_value=-180.0, max_value=180.0, va
 latitude = st.sidebar.slider("Latitude ", min_value=-90.0, max_value=90.0, value=[30.0, 20.0])
 profondeur = st.sidebar.slider("Profondeur", min_value=0.0, max_value=1000.0, value=[0.0, 1000.0])
 date_debut = st.sidebar.date_input("date début", (dt.date(2010, 1, 1)), format="YYYY-MM-DD")
-date_fin = st.sidebar.date_input("date fin", (dt.date(2010, 1, 7)), format="YYYY-MM-DD")
+date_fin = st.sidebar.date_input("date fin", (dt.date(2010, 12, 1)), format="YYYY-MM-DD")
 llon = longitude[0]
 rlon = longitude[1]
 llat = latitude[0]
@@ -57,22 +148,17 @@ st.sidebar.markdown(pyxpcm_text, unsafe_allow_html=True)
 clusters = st.sidebar.slider("nombre de clusters(K)", min_value=2, max_value=20, value=6)
 
 if button_fetch_data:
-    # Récupérer les données uniquement si le bouton est cliqué
-    ds_points = ArgoDataFetcher(src='erddap').region([llon,rlon, llat,ulat, depthmin, depthmax,time_in,time_f]).to_xarray()
-    #recuperer les données avec argopy
-    ds_points = ArgoDataFetcher(src='erddap').region([llon,rlon, llat,ulat, depthmin, depthmax,time_in,time_f]).to_xarray()
-    #mettre en 2 dimensions ( N_PROf x N_LEVELS)
-    ds = ds_points.argo.point2profile()
-    #recuperer les données SIG0 et N2(BRV2) avec teos 10
-    ds.argo.teos10(['SIG0','N2'])
+    ds = pyxpcm_sal_temp(llon,rlon, llat,ulat, depthmin, depthmax,time_in,time_f)
+    LATITUDE = ds['LATITUDE'].values
+    LONGITUDE = ds['LONGITUDE'].values
+    PCM_CLASS = ds['PCM_LABELS'].values
 
-    # z est créé pour représenter des profondeurs de 0 à la profondeur maximale avec un intervalle de 5 mètres ( peux etre modifié)
-    z=np.arange(0,depthmax,5)
-    #interpole ds avec les profondeurs z
-    ds2 = ds.argo.interp_std_levels(z)
-
-    df_points = ds2.to_dataframe()
-
+    # Créer un DataFrame Pandas avec ces données
+    df_points = pd.DataFrame({
+        'LATITUDE': LATITUDE.flatten(),
+        'LONGITUDE': LONGITUDE.flatten(),
+        'PCM_CLASS': PCM_CLASS.flatten()
+        })
 
 
 
@@ -90,29 +176,33 @@ folium.Rectangle(bounds=[(latitude[0], longitude[0]), (latitude[1], longitude[1]
 # Vérifier si df_points n'est pas vide
 if not df_points.empty :
     st.write(df_points)
-    marker_cluster = MarkerCluster().add_to(m)
-
+    max_pcm_class = df_points['PCM_CLASS'].max()
+    df_points['Color'] = df_points['PCM_CLASS'].apply(lambda x: "#{:06x}".format((x * 977) % 0x1000000))
     for index, row in df_points.iterrows():
-                # Créer un popup avec les informations du DataFrame
-                popup_content = """
-                        Latitude: {}<br>
-                        Longitude: {}<br>
-                        Pres: {}<br>
-                        Psal: {}<br>
-                        Temp: {}<br>
-                        Time: {}<br>
-                        N2: {}<br>
-                        SIG0: {}
-                    """.format(row['LATITUDE'], row['LONGITUDE'], row['PRES'], 
-                            row['PSAL'], row['TEMP'], row['TIME'], row['N2'], row['SIG0'])
-                folium.CircleMarker(location=[row['LATITUDE'], row['LONGITUDE']],
-                                radius=5,  # ajustez la taille du cercle selon vos préférences
-                                color='blue',  # couleur du cercle
-                                fill=True,
-                                fill_color='blue',  # couleur de remplissage du cercle
-                                fill_opacity=0.7,
-                                popup=folium.Popup(popup_content, max_width=300)).add_to(marker_cluster)
- 
+        class_colors = {
+            0: 'blue',
+            1: 'red',
+            2: 'yellow',
+            3: 'grey',
+            4: 'pink',
+            5: 'brown',
+            6: 'white'
+
+        }
+        #color = class_colors.get(row['PCM_CLASS'], 'green')
+        color = int_to_rgb(row['PCM_CLASS'])
+        # Créer un popup avec les informations du DataFrame
+        popup_content = """
+                PCM_CLASS: {}<br>
+            """.format(row['PCM_CLASS'])
+        folium.CircleMarker(location=[row['LATITUDE'], row['LONGITUDE']],
+                        radius=3,  # taille du cercle 
+                        color=color,  # couleur du cercle
+                        fill=True,
+                        fill_color= color,  # couleur de remplissage du cercle
+                        fill_opacity=1,
+                        popup=folium.Popup(popup_content, max_width=300)).add_to(m)
+
 
 
     
@@ -121,14 +211,3 @@ folium_static(m, width=1350, height=600)
 
 # graphique canvas
 
-
-
-
-
-
-    
-
-
-    
-
-    
