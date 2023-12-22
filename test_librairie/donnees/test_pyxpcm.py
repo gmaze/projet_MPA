@@ -21,7 +21,7 @@ ulat=30;llat=20
 depthmin=0;depthmax=1000
 # Time range des donnnées
 time_in='2010-01-01'
-time_f='2015-12-01'
+time_f='2010-03-01'
 
 
 #recuperer les données avec argopy
@@ -78,7 +78,8 @@ da=xr.Dataset(data_vars={
                          'BRV2':(('N_PROF','DEPTH'),brv2)
                         },
                          coords={'DEPTH':depth})
-#print(da)
+print("ici")
+print(type(da))
 
 
 z = np.arange(0.,-900,-10.) # depth array
@@ -104,6 +105,14 @@ print(da)
 for vname in ['TEMP', 'PSAL']:
     da = da.pyxpcm.quantile(m, q=[0.05, 0.5, 0.95], of=vname, outname=vname + '_Q', keep_attrs=True, inplace=True)
 print(da)
+
+ds_unique_depth = da.isel(DEPTH=0)
+
+
+
+# Afficher le résultat
+print("ici")
+print(ds_unique_depth)
 
 #fig, ax = m.plot.quantile(da['TEMP_Q'], maxcols=3, figsize=(10, 8), sharey=True)
 
