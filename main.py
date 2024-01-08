@@ -87,18 +87,13 @@ def recup_argo_data(llon:float,rlon:float, llat:float,ulat:float, depthmin:float
                             coords={'DEPTH':depth})
     return da
 
-
+# pyxpcm profil salinité et température 
 def pyxpcm_sal_temp(da):
-
     # Temporarily redefine np.int to int -> car sinon on a une erreur np.int est deprecier dans NumPy 1.20
     np.int = int
-
-
     z = np.arange(0.,-900,-10.) # depth array
     pcm_features = {'temperature': z, 'salinity':z} #features that vary in function of depth
     m = pcm(K=6, features=pcm_features) # create the 'basic' model
-    
-    
     
     features_in_ds = {'temperature': 'TEMP', 'salinity': 'PSAL'}
     features_zdim='DEPTH'
@@ -108,31 +103,74 @@ def pyxpcm_sal_temp(da):
     da['DEPTH'].attrs['axis'] = 'Z'
 
     m.predict(da, features=features_in_ds, dim=features_zdim,inplace=True)
- 
-
     m.predict_proba(da, features=features_in_ds, inplace=True)
 
     for vname in ['TEMP', 'PSAL']:
         da = da.pyxpcm.quantile(m, q=[0.05, 0.5, 0.95], of=vname, outname=vname + '_Q', keep_attrs=True, inplace=True)
+    # Reset np.int 
+    np.int = np.int_
+    return da, m
 
+# pyxpcm profil temperature
+def pyxpcm_temp(da):
+    # Temporarily redefine np.int to int -> car sinon on a une erreur np.int est deprecier dans NumPy 1.20
+    np.int = int
+    z = np.arange(0.,-900,-10.) # depth array -> penser achanger le -900 !!!
+    pcm_features = {'temperature': z} #features that vary in function of depth
+    m = pcm(K=6, features=pcm_features) # create the 'basic' model -> penser a mettre en place la récupération de K  
+    
+    features_in_ds = {'temperature': 'TEMP'}
+    features_zdim='DEPTH'
+    m.fit(da, features=features_in_ds, dim=features_zdim)
+    da['TEMP'].attrs['feature_name'] = 'temperature'
+    da['DEPTH'].attrs['axis'] = 'Z'
+
+    m.predict(da, features=features_in_ds, dim=features_zdim,inplace=True)
+    m.predict_proba(da, features=features_in_ds, inplace=True)
+
+    for vname in ['TEMP']:
+        da = da.pyxpcm.quantile(m, q=[0.05, 0.5, 0.95], of=vname, outname=vname + '_Q', keep_attrs=True, inplace=True)
 
     # Reset np.int to its original value
     np.int = np.int_
-
-
     return da
 
+# pyxpcm profil salinité
+def pyxpcm_sal(da):
+
+    # Temporarily redefine np.int to int -> car sinon on a une erreur np.int est deprecier dans NumPy 1.20
+    np.int = int
+    z = np.arange(0.,-900,-10.) # depth array
+    pcm_features = {'salinity':z} #features that vary in function of depth
+    m = pcm(K=6, features=pcm_features) # create the 'basic' model
+    
+    features_in_ds = {'salinity': 'PSAL'}
+    features_zdim='DEPTH'
+    m.fit(da, features=features_in_ds, dim=features_zdim)
+    da['PSAL'].attrs['feature_name'] = 'salinity'
+    da['DEPTH'].attrs['axis'] = 'Z'
+
+    m.predict(da, features=features_in_ds, dim=features_zdim,inplace=True)
+    m.predict_proba(da, features=features_in_ds, inplace=True)
+
+    for vname in ['PSAL']:
+        da = da.pyxpcm.quantile(m, q=[0.05, 0.5, 0.95], of=vname, outname=vname + '_Q', keep_attrs=True, inplace=True)
+    # Reset np.int 
+    np.int = np.int_
+    return da
+
+# garde le dataset dans la session
 if 'ds' not in st.session_state:
     st.session_state.ds = xr.Dataset()
 
 def main():
     global ds
     df_points = pd.DataFrame()
+    #decentre les éléments de la page 
     st.set_page_config(layout="wide")
 
     # parameters canvas
     # argopy parameters
-
     argopy_text = '<b><font color="blue" size="5">parametre argopy</font></b>'
     st.sidebar.markdown(argopy_text, unsafe_allow_html=True)
 
@@ -149,14 +187,16 @@ def main():
     depthmax = profondeur[1]
     time_in = date_debut.strftime("%Y-%m-%d")
     time_f = date_fin.strftime("%Y-%m-%d")
-
+    #button active la récupération argopy
     button_fetch_data = st.sidebar.button("Récupérer les données")
 
     # pyxpcm parameters
     pyxpcm_text = '<b><font color="blue" size="5">parametre pyxpcm</font></b>'
     st.sidebar.markdown(pyxpcm_text, unsafe_allow_html=True)
     clusters = st.sidebar.slider("nombre de clusters(K)", min_value=2, max_value=20, value=6)
-
+    prof_salinite = st.sidebar.checkbox('salinite', value=True)
+    prof_temperature =st.sidebar.checkbox('temperature',value= True)
+    #button active la classification des données argopy
     button_class_data = st.sidebar.button("classifier les données")
 
     if button_fetch_data:
@@ -164,23 +204,37 @@ def main():
         st.write(st.session_state.ds.to_dataframe())
 
     if button_class_data:
-        print(st.session_state.ds)
-        ds_py = pyxpcm_sal_temp(st.session_state.ds )
-        ds_trier = ds_py.isel(DEPTH=0)
-        ds_trier = ds_trier.isel(quantile=1)
-        df_points = ds_trier.to_dataframe()
-        st.write(ds_trier.to_dataframe())
+        if st.session_state.ds != None :
+            # clean ds_py 
+            if (prof_salinite) and (prof_temperature):
+                st.write("profil salinité et temperature")
+                ds_py , m = pyxpcm_sal_temp(st.session_state.ds)
+            elif (prof_salinite) and (not prof_temperature):
+                st.write("profil salinite")
+                ds_py = pyxpcm_sal(st.session_state.ds)
+            else:
+                st.write("profil temperature")
+                ds_py = pyxpcm_temp(st.session_state.ds)
+
+            ds_trier = ds_py.isel(DEPTH=0)
+            ds_trier = ds_trier.isel(quantile=1)
+            df_points = ds_trier.to_dataframe()
+            print(ds_py)
+            st.write(ds_trier.to_dataframe())
+        else : 
+            st.write("pas de donner argo à classifier !")
+
 
     # Map canvas
     # créer un map folium avec la latitude et longitude 
-    m = folium.Map(location=[np.mean(latitude), np.mean(longitude)], zoom_start=4)
+    map = folium.Map(location=[np.mean(latitude), np.mean(longitude)], zoom_start=4)
 
     #maj emplacement si changement latitude ou longitude
-    m.location = [np.mean(latitude), np.mean(longitude)]
+    map.location = [np.mean(latitude), np.mean(longitude)]
 
     # ajouter un rectangle pour marquer l'emplacement des données.
     folium.Rectangle(bounds=[(latitude[0], longitude[0]), (latitude[1], longitude[1])],
-                        color='red').add_to(m)
+                        color='red').add_to(map)
 
     # Vérifier si df_points n'est pas vide
     if not df_points.empty :
@@ -207,16 +261,23 @@ def main():
                             fill=True,
                             fill_color= color,  # couleur de remplissage du cercle
                             fill_opacity=1,
-                            popup=folium.Popup(popup_content, max_width=300)).add_to(m)
+                            popup=folium.Popup(popup_content, max_width=300)).add_to(map)
 
 
 
         
     # Afficher la carte
-    folium_static(m, width=1350, height=600)
+    folium_static(map, width=1350, height=600)
 
 
-
+    
     # graphique canvas
+    if not df_points.empty :
+        st.write( "graphique temperature")
+        fig, ax = m.plot.quantile(ds_py['TEMP_Q'], maxcols=4, figsize=(10, 8), sharey=True)
+        st.write("graphique salinité ")
+        st.pyplot(fig)    
+
+
 if __name__ == "__main__":
     main()

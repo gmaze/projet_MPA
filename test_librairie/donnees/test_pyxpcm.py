@@ -83,7 +83,8 @@ print(type(da))
 
 
 z = np.arange(0.,-900,-10.) # depth array
-pcm_features = {'temperature': z, 'salinity':z} #features that vary in function of depth
+#pcm_features = {'temperature': z, 'salinity':z} #features that vary in function of depth
+pcm_features = {'temperature': z} #features that vary in function of depth
 m = pcm(K=6, features=pcm_features) # create the 'basic' model
 #print(m)
 
@@ -92,7 +93,7 @@ features_in_ds = {'temperature': 'TEMP', 'salinity': 'PSAL'}
 features_zdim='DEPTH'
 m.fit(da, features=features_in_ds, dim=features_zdim)
 da['TEMP'].attrs['feature_name'] = 'temperature'
-da['PSAL'].attrs['feature_name'] = 'salinity'
+#da['PSAL'].attrs['feature_name'] = 'salinity'
 da['DEPTH'].attrs['axis'] = 'Z'
 
 
@@ -102,7 +103,7 @@ print(da)
 m.predict_proba(da, features=features_in_ds, inplace=True)
 print(da)
 
-for vname in ['TEMP', 'PSAL']:
+for vname in ['TEMP']:
     da = da.pyxpcm.quantile(m, q=[0.05, 0.5, 0.95], of=vname, outname=vname + '_Q', keep_attrs=True, inplace=True)
 print(da)
 
