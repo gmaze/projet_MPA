@@ -13,6 +13,7 @@ import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 import cartopy.feature as cfeature
 import gsw
+import seaborn
 
 
 # créer une box pour dataFetcher de argopy
@@ -21,7 +22,7 @@ ulat=30;llat=20
 depthmin=0;depthmax=1000
 # Time range des donnnées
 time_in='2010-01-01'
-time_f='2010-03-01'
+time_f='2010-02-01'
 
 
 #recuperer les données avec argopy
@@ -79,21 +80,29 @@ da=xr.Dataset(data_vars={
                         },
                          coords={'DEPTH':depth})
 print("ici")
-print(type(da))
 
 
-z = np.arange(0.,-900,-10.) # depth array
-#pcm_features = {'temperature': z, 'salinity':z} #features that vary in function of depth
-pcm_features = {'temperature': z} #features that vary in function of depth
-m = pcm(K=6, features=pcm_features) # create the 'basic' model
-#print(m)
+element_depth = da.sel(DEPTH=da.DEPTH[-1]).DEPTH.values# récupère la valeur max de DEPTH
+z = np.arange(0.,element_depth,-10.) # depth array
+pcm_features = {'temperature': z, 'salinity':z} #features that vary in function of depth
+m = pcm(K=6, features=pcm_features, maxvar=2) # create the 'basic' model
+print(m)
 
 
 features_in_ds = {'temperature': 'TEMP', 'salinity': 'PSAL'}
 features_zdim='DEPTH'
+
+das = da.pyxpcm.fit_predict(m, features=features_in_ds, dim=features_zdim, inplace=True)
+das['TEMP'].attrs['feature_name'] = 'temperature'
+das['PSAL'].attrs['feature_name'] = 'salinity'
+das['DEPTH'].attrs['axis'] = 'Z'
+print(das)
+
+
+
 m.fit(da, features=features_in_ds, dim=features_zdim)
 da['TEMP'].attrs['feature_name'] = 'temperature'
-#da['PSAL'].attrs['feature_name'] = 'salinity'
+da['PSAL'].attrs['feature_name'] = 'salinity'
 da['DEPTH'].attrs['axis'] = 'Z'
 
 
@@ -103,27 +112,29 @@ print(da)
 m.predict_proba(da, features=features_in_ds, inplace=True)
 print(da)
 
-for vname in ['TEMP']:
-    da = da.pyxpcm.quantile(m, q=[0.05, 0.5, 0.95], of=vname, outname=vname + '_Q', keep_attrs=True, inplace=True)
+for vname in ['TEMP', 'PSAL']:
+    da = da.pyxpcm.quantile(m, q=[0.05, 0.5,0.95], of=vname, outname=vname + '_Q', keep_attrs=True, inplace=True)
+
 print(da)
 
-ds_unique_depth = da.isel(DEPTH=0)
+X, sampling_dims = m.preprocessing(das, features=features_in_ds)
+print(X)
 
+#m.plot.scaler()
+#m.plot.reducer()
+#g = m.plot.preprocessed(das, features=features_in_ds, style='darkgrid')
+#g = m.plot.preprocessed(das, features=features_in_ds, kde=True)
 
-
-# Afficher le résultat
-print("ici")
-print(ds_unique_depth)
-
-#fig, ax = m.plot.quantile(da['TEMP_Q'], maxcols=3, figsize=(10, 8), sharey=True)
-
+fig, ax = m.plot.quantile(da['TEMP_Q'], maxcols=3, figsize=(10, 8), sharey=True)
 #fig, ax = m.plot.quantile(da['PSAL_Q'], maxcols=3, figsize=(10, 8), sharey=True)
+
+plt.show()
+
+
+
 #plt.show()
 
-
-
-
-
+"""
 proj = ccrs.PlateCarree()
 subplot_kw={'projection': proj, 'extent': np.array([-80,1,-1,66]) + np.array([-0.1,+0.1,-0.1,+0.1])}
 fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(5,5), dpi=120, facecolor='w', edgecolor='k', subplot_kw=subplot_kw)
@@ -137,6 +148,9 @@ ax.add_feature(cfeature.LAND)
 ax.add_feature(cfeature.COASTLINE)
 ax.set_title('LABELS of the training set')
 plt.show()
+"""
+
+
 
 
 # Reset np.int to its original value
