@@ -35,6 +35,7 @@ dependencies:
   - ipykernel
   - ipywidgets
   - matplotlib
+  - seaborn
 
 # DEV:
   - bottleneck
