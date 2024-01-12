@@ -1,0 +1,12 @@
+argopy==0.1.15
+pyxpcm
+streamlit
+plotly
+gsw
+pandas
+numpy
+xarray
+matplotlib
+scipy
+cartopy
+pyproj
