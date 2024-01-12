@@ -41,6 +41,9 @@ dependencies:
   - cftime = 1.6.2
   - numpy = 1.24.3
   - pandas = 1.5.3
+
+# PIP
+  - pip = 23.2.1
   - pip:
       - streamlit==1.26
       - git+https://github.com/obidam/pyxpcm
