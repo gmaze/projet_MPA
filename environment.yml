@@ -16,6 +16,8 @@ dependencies:
   - xarray
   - plotly
   - watchdog
+  - folium
+  - streamlit-folium
 
 # EXT.UTIL:
   - gsw
