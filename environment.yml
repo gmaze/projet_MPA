@@ -15,6 +15,7 @@ dependencies:
   - xarray = 2023.1.0
   - plotly = 5.9.0
   - watchdog = 2.1.6
+  - argopy = 0.1.15
 
 # EXT.UTIL:
   - gsw = 3.6.16
@@ -42,5 +43,5 @@ dependencies:
   - pandas = 1.5.3
   - pip:
       - streamlit==1.26
-      - git+https://github.com/euroargodev/argopy
+      - git+https://github.com/obidam/pyxpcm
 
